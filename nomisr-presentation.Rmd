@@ -1,0 +1,243 @@
+---
+title: "Introducing `nomisr`"
+author: Evan Odell
+output:
+  slidy_presentation:
+    fig_width: 9
+    fig_height: 6
+    css: styles.css
+footer: "Copyright (c) 2018, Evan Odell"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## The Nomis API
+
+- Run by a team at Durham University on behalf of the ONS
+
+- 1,249 datasets
+
+- Data from the DWP, the Census, population estimates and more
+
+- Based around statistical geographies
+
+## The `nomisr` package
+
+
+```{r eval=FALSE, include=FALSE}
+library(nomisr)
+datasets <- nomis_data_info()
+nrow(datasets)
+```
+
+You can install `nomisr` from CRAN with:
+
+```{r cran-installation, echo=TRUE, eval=FALSE}
+install.packages("nomisr")
+```
+
+Or get the development version from GitHub:
+
+```{r gh-installation, echo=TRUE, eval=FALSE}
+# install.packages("devtools")
+devtools::install_github("ropensci/nomisr")
+```
+
+Load `nomisr`
+
+```{r}
+library(nomisr)
+```
+
+### Syntax
+```{r, echo=TRUE, eval=FALSE}
+nomis_*
+```
+
+
+## Search Nomis
+
+```{r nomisr-search, echo=TRUE}
+mort_search <- nomis_search("*mortality*")
+tibble::glimpse(mort_search)
+```
+
+
+## Getting dataset info
+
+Dataset info is stored in list-columns
+
+```{r include=FALSE}
+library(dplyr, warn.conflicts = FALSE)
+```
+
+
+```{r nomisr-metadata1, echo=TRUE}
+mort_data_info <-  nomis_data_info("NM_161_1")
+
+mort_data_info %>% tidyr::unnest(annotations.annotation) %>% glimpse()
+```
+
+## Getting dataset metadata
+
+```{r nomisr-metadata2}
+mort_metadata <- nomis_get_metadata(id = "NM_161_1")
+```
+
+
+```{r echo=FALSE}
+mort_metadata
+```
+
+## Dataset metadata concepts and types I
+
+#### Concept: The name of a "thing"
+
+#### Type: The varieties of a specific kind of "thing"
+
+
+```{r nomisr-geo-concept2, echo=TRUE}  
+mort_geo <- nomis_get_metadata(id = "NM_161_1", 
+                               concept = "GEOGRAPHY", type = "TYPE")
+```
+
+
+```{r echo=FALSE}
+mort_geo
+```
+
+
+## Dataset metadata concepts and types II
+
+```{r nomisr-geo-concept-type, echo=TRUE}  
+mort_geo_type <- nomis_get_metadata(id = "NM_161_1", 
+                                    concept = "GEOGRAPHY",
+                                    type = "TYPE464")
+```
+
+
+```{r echo=FALSE}
+mort_geo_type
+```
+
+
+## Dataset metadata concepts and types III
+
+```{r nomisr-mort-cause-death}
+
+mort_cause <- nomis_get_metadata(id = "NM_161_1", 
+                                 concept = "CAUSE_OF_DEATH")
+```
+
+
+```{r echo=FALSE}
+mort_cause
+```
+
+## Getting Data
+<div class="notes">
+The `date` parameter takes precedence over the `time` parameter: 
+</div>
+
+
+```
+nomis_get_data(id, time = NULL, date = NULL, geography = NULL,
+  sex = NULL, measures = NULL, additional_queries = NULL,
+  exclude_missing = FALSE, select = NULL, ...)
+```
+
+```{r nomisr-getting-data}
+mort_data <- nomis_get_data(id = "NM_161_1", date = "2016",
+                            geography = "TYPE464", 
+                            cause_of_death = "440", 
+                            sex = 0, age = 0, MEASURE = 6)
+```
+
+```{r echo=FALSE}
+tibble::glimpse(mort_data)
+```
+
+
+## Mapping data
+
+```{r map1}
+library(leaflet)
+suppressMessages(library(sf))
+library(htmlwidgets)
+library(dplyr, quietly = TRUE)
+library(stringr)
+lga_map <- parlitools::local_hex_map
+
+map <-left_join(lga_map, mort_data, 
+                by = c("la_code" = "GEOGRAPHY_CODE")) %>% 
+  filter(str_detect(la_code, "^E"))
+map$OBS_VALUE <- as.numeric(map$OBS_VALUE)
+
+labels <- paste0(
+  "<strong>", map$la_name, "</strong>", "</br>",
+  "Percentage of deaths: ", map$OBS_VALUE, "%</br>"
+) %>% lapply(htmltools::HTML)
+
+pal = colorNumeric("magma", map$OBS_VALUE, na.color = NA)
+
+map2 <- leaflet(options=leafletOptions(
+  dragging = FALSE, zoomControl = FALSE, tap = FALSE,
+  minZoom = 6.5, maxZoom = 6.5, maxBounds = list(list(2.5,-7.75),
+                                             list(58.25,50.0)),
+  attributionControl = FALSE),
+  map) %>%
+  addPolygons(
+    color = "grey", weight=0.75, opacity = 0.5, fillOpacity = 1,
+    fillColor = ~pal(OBS_VALUE), label = labels) %>%
+  addLegend("topright", pal = pal, values = ~OBS_VALUE,
+    title = "Blood Cancers Deaths<br>Percentage of all deaths, 2016",
+    opacity = 1)  %>% 
+  htmlwidgets::onRender(
+    "function(x, y) {
+        var myMap = this;
+        myMap._container.style['background'] = '#fff';
+    }")%>% 
+  mapOptions(zoomToLimits = "first")
+
+```
+
+## The map
+
+```{r echo=FALSE}
+map2
+```
+
+
+
+## Notes
+
+* Nomis uses its own internal geography codes
+
+* All columns in data from `nomis_get_data()` are character vectors
+
+
+
+### Source Code:
+
+#### https://github.com/ropensci/nomisr
+
+### Full Documentation:
+
+#### https://docs.evanodell.com/nomisr
+
+
+[![ropensci_footer](https://ropensci.org/public_images/ropensci_footer.png)](https://ropensci.org)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/nomisr)](https://cran.r-project.org/package=nomisr)
+[![GitHub tag](https://img.shields.io/github/tag/ropensci/nomisr.svg)](https://github.com/ropensci/nomisr)
+[![](https://cranlogs.r-pkg.org/badges/grand-total/nomisr)](https://dgrtwo.shinyapps.io/cranview/)
+[![Travis-CI Build Status](https://travis-ci.org/ropensci/nomisr.svg?branch=master)](https://travis-ci.org/ropensci/nomisr)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/githubmap/evanodell/nomisr?branch=master&svg=true)](https://ci.appveyor.com/project/evanodell/nomisr)
+[![Coverage Status](https://img.shields.io/codecov/c/github/ropensci/nomisr/master.svg)](https://codecov.io/github/ropensci/nomisr?branch=master)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1246845.svg)](https://doi.org/10.5281/zenodo.1246845)
+

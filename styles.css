@@ -1,0 +1,43 @@
+
+div.toolbar {
+  position: fixed; 
+  z-index: 200;
+  top: auto; 
+  bottom: 0; 
+  left: 0; 
+  right: 0;
+  height: 1.5em; 
+  text-align: right;
+  padding-left: 1em;
+  padding-right: 1em; font-size: 60%;
+  color: DimGray;
+  background-color: rgb(240,240,240);
+}
+
+p {
+  text-align: left;
+}
+
+body {
+ font-size: 24px;
+}
+
+pre code {
+  font-size: 65%;
+}
+
+div.sourceCode {
+    margin: 0.2em 0;
+}
+
+.midcenter {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+}
+
+.gdbar img {
+  width: 693px !important;
+  height: 101px !important;
+  margin: 8px 8px;
+}
